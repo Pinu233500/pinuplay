@@ -286,10 +286,11 @@
             <button class="hover:text-white"><i class="fas fa-bars"></i></button>
             <button class="hover:text-white"><i class="fas fa-desktop"></i></button>
             
-            <div class="flex items-center gap-2 w-24 group cursor-pointer">
-                <i class="fas fa-volume-up hover:text-white"></i>
-                <div class="h-1 bg-spotify-lightgray rounded-full flex-1 relative">
-                    <div class="h-full bg-white group-hover:bg-spotify-green rounded-full w-2/3"></div>
+            <div class="flex items-center gap-2 w-24 group cursor-pointer" id="volumeControlGroup">
+                <i class="fas fa-volume-up hover:text-white w-4 text-center" id="muteIcon"></i>
+                <div class="h-1 bg-spotify-lightgray rounded-full flex-1 relative" id="volumeContainer">
+                    <div class="h-full bg-white group-hover:bg-spotify-green rounded-full absolute top-0 left-0" style="width: 100%;" id="volumeBar"></div>
+                    <div class="w-3 h-3 bg-white rounded-full absolute top-1/2 -translate-y-1/2 -ml-1.5 opacity-0 group-hover:opacity-100 shadow" id="volumeThumb" style="left: 100%;"></div>
                 </div>
             </div>
         </div>
@@ -321,6 +322,12 @@
         const emptyState = document.getElementById('emptyState');
         const songListContainer = document.getElementById('songListContainer');
         const songListBody = document.getElementById('songListBody');
+
+        // Volume DOM Elements
+        const volumeContainer = document.getElementById('volumeContainer');
+        const volumeBar = document.getElementById('volumeBar');
+        const volumeThumb = document.getElementById('volumeThumb');
+        const muteIcon = document.getElementById('muteIcon');
 
         // State aplikasi
         let playlist = []; // Menyimpan file objek
@@ -537,6 +544,52 @@
         window.addEventListener('beforeunload', () => {
             if (audioPlayer.src.startsWith('blob:')) {
                 URL.revokeObjectURL(audioPlayer.src);
+            }
+        });
+
+        // --- Volume Control Logic ---
+        let currentVolume = 1.0; // Volume default 100%
+        audioPlayer.volume = currentVolume;
+        
+        // Fungsi untuk mengupdate tampilan UI Bar Volume
+        function updateVolumeUI(volume) {
+            const percent = volume * 100;
+            volumeBar.style.width = `${percent}%`;
+            volumeThumb.style.left = `${percent}%`;
+            
+            // Ganti ikon sesuai level volume
+            muteIcon.className = 'hover:text-white w-4 text-center cursor-pointer transition ' + 
+                (volume === 0 ? 'fas fa-volume-mute' : 
+                 volume < 0.5 ? 'fas fa-volume-down' : 
+                 'fas fa-volume-up');
+        }
+
+        // Event listener saat bar volume diklik
+        volumeContainer.addEventListener('click', (e) => {
+            const rect = volumeContainer.getBoundingClientRect();
+            let clickX = e.clientX - rect.left;
+            
+            // Pastikan nilai tidak keluar dari batas (0 hingga lebar bar)
+            clickX = Math.max(0, Math.min(clickX, rect.width));
+            
+            // Hitung rasio volume (0.0 sampai 1.0)
+            let newVolume = clickX / rect.width;
+            
+            audioPlayer.volume = newVolume;
+            currentVolume = newVolume; // Simpan ke state
+            updateVolumeUI(newVolume);
+        });
+        
+        // Event listener untuk fungsi Mute/Unmute saat icon speaker diklik
+        muteIcon.addEventListener('click', () => {
+            if (audioPlayer.volume > 0) {
+                // Bisukan
+                audioPlayer.volume = 0;
+                updateVolumeUI(0);
+            } else {
+                // Kembalikan ke volume sebelumnya atau maksimal
+                audioPlayer.volume = currentVolume > 0 ? currentVolume : 1.0;
+                updateVolumeUI(audioPlayer.volume);
             }
         });
 
