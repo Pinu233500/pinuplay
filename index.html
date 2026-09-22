@@ -3,596 +3,482 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Musik - Gaya Spotify</title>
-    <!-- Menggunakan Tailwind CSS untuk styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Konfigurasi warna kustom Tailwind -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        spotify: {
-                            black: '#121212',
-                            gray: '#181818',
-                            lightgray: '#282828',
-                            green: '#1DB954',
-                            white: '#FFFFFF',
-                            text: '#B3B3B3'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- Menambahkan Font Awesome untuk ikon -->
+    <title>PinuPlay - Cloud Music Streaming</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome untuk ikon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase App & Realtime Database CDN -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-panel: #181818;
+            --bg-card: #282828;
+            --accent: #1db954;
+            --text-main: #ffffff;
+            --text-muted: #b3b3b3;
+        }
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #000000;
-            color: #FFFFFF;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding-bottom: 100px;
         }
-        
-        /* Kustomisasi Scrollbar agar terlihat lebih elegan */
-        ::-webkit-scrollbar {
-            width: 8px;
+        /* Auth Container */
+        #authScreen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #000000, #1db95433);
         }
-        ::-webkit-scrollbar-track {
-            background: transparent;
+        .auth-card {
+            background-color: var(--bg-panel);
+            padding: 40px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
         }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
+        /* Main App Layout */
+        .app-container { display: none; }
+        .sidebar {
+            background-color: #000;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 260px;
+            padding: 20px;
+            border-right: 1px solid #282828;
+        }
+        .main-content {
+            margin-left: 260px;
+            padding: 30px;
+        }
+        .nav-link {
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 10px 15px;
             border-radius: 4px;
+            transition: 0.2s;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.5);
+        .nav-link:hover, .nav-link.active {
+            color: var(--text-main);
+            background-color: var(--bg-card);
         }
-
-        /* Utilitas untuk memotong teks panjang dengan ellipsis */
-        .truncate-text {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .music-card {
+            background-color: var(--bg-panel);
+            border: none;
+            border-radius: 8px;
+            transition: 0.3s;
+            cursor: pointer;
         }
-
-        /* Efek transisi pada tombol cover album */
-        .album-cover-hover .play-btn {
-            opacity: 0;
-            transform: translateY(8px);
-            transition: all 0.3s ease;
+        .music-card:hover {
+            background-color: var(--bg-card);
+            transform: translateY(-4px);
         }
-        .album-cover-hover:hover .play-btn {
-            opacity: 1;
-            transform: translateY(0);
+        .album-art {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 6px;
         }
-        
-        /* Animasi progress bar saat sedang memutar lagu */
-        .progress-bar-fill {
-            transition: width 0.1s linear;
+        /* Bottom Player Bar */
+        .player-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 90px;
+            background-color: #181818;
+            border-top: 1px solid #282828;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+        }
+        .player-controls button {
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.2rem;
+            margin: 0 10px;
+            cursor: pointer;
+        }
+        .player-controls button.btn-play {
+            background-color: var(--text-main);
+            color: #000;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        .progress-bar-custom {
+            width: 100%;
+            height: 5px;
+            background-color: #404040;
+            border-radius: 5px;
+            cursor: pointer;
+            position: relative;
+        }
+        .progress-filled {
+            height: 100%;
+            background-color: var(--accent);
+            border-radius: 5px;
+            width: 0%;
         }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body>
 
-    <!-- Kontainer Atas (Sidebar + Konten Utama) -->
-    <div class="flex-1 flex overflow-hidden">
-        
-        <!-- Sidebar Kiri -->
-        <aside class="w-64 bg-spotify-black p-4 flex flex-col gap-4 hidden md:flex">
-            <!-- Logo -->
-            <div class="flex items-center gap-2 mb-4 text-spotify-white font-bold text-xl cursor-pointer">
-                <i class="fab fa-spotify text-3xl"></i>
-                <span>Harmoniq</span>
-            </div>
-
-            <!-- Navigasi Utama -->
-            <nav class="flex flex-col gap-2">
-                <a href="#" class="flex items-center gap-4 text-spotify-white opacity-100 hover:opacity-100 transition duration-200 py-2">
-                    <i class="fas fa-home text-xl w-6 text-center"></i>
-                    <span class="font-semibold">Beranda</span>
-                </a>
-                <a href="#" class="flex items-center gap-4 text-spotify-text hover:text-spotify-white transition duration-200 py-2">
-                    <i class="fas fa-search text-xl w-6 text-center"></i>
-                    <span class="font-semibold">Cari</span>
-                </a>
-                <a href="#" class="flex items-center gap-4 text-spotify-text hover:text-spotify-white transition duration-200 py-2">
-                    <i class="fas fa-book text-xl w-6 text-center"></i>
-                    <span class="font-semibold">Koleksi Kamu</span>
-                </a>
-            </nav>
-
-            <div class="mt-4 pt-4 border-t border-spotify-lightgray"></div>
-
-            <!-- Menu Tambahan (Playlist & Upload) -->
-            <nav class="flex flex-col gap-2">
-                <a href="#" class="flex items-center gap-4 text-spotify-text hover:text-spotify-white transition duration-200 py-2">
-                    <div class="bg-spotify-text text-black p-1 rounded-sm w-6 h-6 flex items-center justify-center">
-                        <i class="fas fa-plus text-xs"></i>
-                    </div>
-                    <span class="font-semibold">Buat Playlist</span>
-                </a>
-                
-                <!-- Area Upload MP3 Lokal -->
-                <div class="mt-4 p-3 bg-spotify-gray rounded-lg border border-spotify-lightgray">
-                    <h3 class="text-sm font-semibold mb-2">Putar File Lokal</h3>
-                    <p class="text-xs text-spotify-text mb-3">Pilih file .mp3 dari perangkatmu.</p>
-                    <label class="cursor-pointer bg-spotify-green hover:bg-green-400 text-spotify-black text-sm font-bold py-2 px-4 rounded-full w-full block text-center transition duration-200">
-                        Pilih File Audio
-                        <input type="file" id="audioUpload" accept="audio/*" class="hidden">
-                    </label>
+    <!-- SCREEN 1: LOGIN / REGISTER -->
+    <div id="authScreen">
+        <div class="auth-card text-center">
+            <h2 class="text-white mb-4"><i class="fa-solid fa-music text-success"></i> PinuPlay</h2>
+            <p class="text-muted mb-4">Masuk untuk akses musik cloud Anda dari komputer mana saja.</p>
+            <div id="authAlert" class="alert alert-danger d-none py-2 small"></div>
+            <form id="authForm" onsubmit="handleAuth(event)">
+                <div class="mb-3 text-start">
+                    <label class="form-label text-muted small">Username</label>
+                    <input type="text" id="authUsername" class="form-control bg-dark text-white border-secondary" required>
                 </div>
-            </nav>
-
-            <!-- Daftar Playlist Palsu -->
-            <div class="mt-2 flex-1 overflow-y-auto">
-                <ul class="text-spotify-text text-sm flex flex-col gap-3">
-                    <li class="hover:text-spotify-white cursor-pointer transition">Lagu Santai Malam</li>
-                    <li class="hover:text-spotify-white cursor-pointer transition">Fokus Belajar</li>
-                    <li class="hover:text-spotify-white cursor-pointer transition">Top Hits Indonesia</li>
-                    <li class="hover:text-spotify-white cursor-pointer transition">Rock Klasik 90an</li>
-                    <li class="hover:text-spotify-white cursor-pointer transition">Lagu Galau Parah</li>
-                </ul>
-            </div>
-        </aside>
-
-        <!-- Konten Utama Tengah -->
-        <main class="flex-1 bg-gradient-to-b from-[#2a2a2a] to-spotify-black overflow-y-auto rounded-tl-lg relative">
-            
-            <!-- Header Sticky (Navigasi Atas) -->
-            <header class="sticky top-0 z-10 bg-spotify-black bg-opacity-70 backdrop-blur-md px-6 py-4 flex justify-between items-center">
-                <div class="flex gap-2">
-                    <button class="w-8 h-8 rounded-full bg-black bg-opacity-50 flex items-center justify-center text-spotify-text hover:text-white">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <button class="w-8 h-8 rounded-full bg-black bg-opacity-50 flex items-center justify-center text-spotify-text hover:text-white">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
+                <div class="mb-4 text-start">
+                    <label class="form-label text-muted small">Password</label>
+                    <input type="password" id="authPassword" class="form-control bg-dark text-white border-secondary" required>
                 </div>
-                <div class="flex items-center gap-4">
-                    <button class="text-spotify-text hover:text-white font-bold text-sm bg-black px-4 py-2 rounded-full border border-gray-600 hover:border-white transition">Jelajahi Premium</button>
-                    <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center cursor-pointer">
-                        <i class="fas fa-user text-sm"></i>
-                    </div>
-                </div>
-            </header>
-
-            <!-- Konten Halaman (Daftar Lagu Lokal) -->
-            <div class="p-6 pb-24">
-                <h1 class="text-3xl font-bold mb-6">Lokal Kamu</h1>
-                
-                <div class="mb-8">
-                    <p class="text-spotify-text mb-4">Lagu yang kamu unggah dari perangkat lokal akan muncul di sini sementara. (Tidak disimpan di server)</p>
-                    
-                    <!-- Area kosong jika tidak ada lagu -->
-                    <div id="emptyState" class="text-center py-12 bg-spotify-gray rounded-lg border border-spotify-lightgray">
-                        <i class="fas fa-music text-4xl text-spotify-text mb-4"></i>
-                        <h2 class="text-xl font-bold mb-2">Belum ada lagu yang diunggah</h2>
-                        <p class="text-sm text-spotify-text">Gunakan tombol 'Pilih File Audio' di sidebar untuk memutar musik.</p>
-                    </div>
-
-                    <!-- Tabel Daftar Lagu (Awalnya disembunyikan) -->
-                    <div id="songListContainer" class="hidden">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="text-spotify-text text-sm border-b border-spotify-lightgray">
-                                    <th class="pb-3 w-8 text-center">#</th>
-                                    <th class="pb-3">Judul File</th>
-                                    <th class="pb-3 hidden md:table-cell">Ukuran</th>
-                                    <th class="pb-3 text-right pr-4"><i class="far fa-clock"></i></th>
-                                </tr>
-                            </thead>
-                            <tbody id="songListBody">
-                                <!-- Baris lagu akan ditambahkan di sini melalui JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <h2 class="text-2xl font-bold mb-4 hover:underline cursor-pointer">Campuran Dibuat Untukmu</h2>
-                <!-- Grid Kartu Album -->
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    <!-- Kartu 1 -->
-                    <div class="bg-spotify-gray p-4 rounded-lg hover:bg-spotify-lightgray transition duration-300 cursor-pointer group album-cover-hover">
-                        <div class="relative mb-4">
-                            <img src="https://placehold.co/400x400/2a2a2a/ffffff?text=Mix+1" alt="Album Cover" class="w-full aspect-square object-cover rounded shadow-lg">
-                            <button class="play-btn absolute bottom-2 right-2 w-12 h-12 bg-spotify-green rounded-full flex items-center justify-center text-black shadow-xl hover:scale-105 hover:bg-green-400">
-                                <i class="fas fa-play ml-1 text-xl"></i>
-                            </button>
-                        </div>
-                        <h3 class="font-bold truncate-text mb-1">Daily Mix 1</h3>
-                        <p class="text-sm text-spotify-text line-clamp-2">Tulus, Raisa, Afgan, dan lainnya</p>
-                    </div>
-
-                    <!-- Kartu 2 -->
-                    <div class="bg-spotify-gray p-4 rounded-lg hover:bg-spotify-lightgray transition duration-300 cursor-pointer group album-cover-hover">
-                        <div class="relative mb-4">
-                            <img src="https://placehold.co/400x400/3a1a1a/ffffff?text=Mix+2" alt="Album Cover" class="w-full aspect-square object-cover rounded shadow-lg">
-                            <button class="play-btn absolute bottom-2 right-2 w-12 h-12 bg-spotify-green rounded-full flex items-center justify-center text-black shadow-xl hover:scale-105 hover:bg-green-400">
-                                <i class="fas fa-play ml-1 text-xl"></i>
-                            </button>
-                        </div>
-                        <h3 class="font-bold truncate-text mb-1">Pop Santai</h3>
-                        <p class="text-sm text-spotify-text line-clamp-2">Lagu-lagu pop untuk menemani sore hari</p>
-                    </div>
-
-                    <!-- Kartu 3 -->
-                    <div class="bg-spotify-gray p-4 rounded-lg hover:bg-spotify-lightgray transition duration-300 cursor-pointer group album-cover-hover">
-                        <div class="relative mb-4">
-                            <img src="https://placehold.co/400x400/1a3a1a/ffffff?text=Mix+3" alt="Album Cover" class="w-full aspect-square object-cover rounded shadow-lg">
-                            <button class="play-btn absolute bottom-2 right-2 w-12 h-12 bg-spotify-green rounded-full flex items-center justify-center text-black shadow-xl hover:scale-105 hover:bg-green-400">
-                                <i class="fas fa-play ml-1 text-xl"></i>
-                            </button>
-                        </div>
-                        <h3 class="font-bold truncate-text mb-1">Fokus Instrumental</h3>
-                        <p class="text-sm text-spotify-text line-clamp-2">Musik tanpa lirik untuk konsentrasi</p>
-                    </div>
-                </div>
-            </div>
-        </main>
+                <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Masuk / Daftar Akun</button>
+            </form>
+        </div>
     </div>
 
-    <!-- Player Bar Bawah -->
-    <footer class="bg-spotify-gray border-t border-black px-4 py-3 h-24 flex items-center justify-between z-50">
-        
-        <!-- Info Lagu Sedang Diputar -->
-        <div class="flex items-center gap-4 w-1/3 min-w-[150px]">
-            <div class="w-14 h-14 bg-spotify-lightgray rounded shadow flex items-center justify-center text-spotify-text overflow-hidden" id="currentCoverInfo">
-                <i class="fas fa-music text-2xl"></i>
+    <!-- SCREEN 2: MAIN DASHBOARD -->
+    <div id="mainApp" class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar d-flex flex-column justify-content-between">
+            <div>
+                <h3 class="text-white mb-4"><i class="fa-solid fa-music text-success"></i> PinuPlay</h3>
+                <ul class="nav flex-column gap-2">
+                    <li class="nav-item"><a class="nav-link active" href="#" onclick="switchTab('home')"><i class="fa-solid fa-house me-2"></i> Beranda</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" onclick="switchTab('upload')"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Unggah Musik</a></li>
+                </ul>
             </div>
-            <div class="flex flex-col justify-center">
-                <a href="#" class="font-semibold text-sm hover:underline truncate-text w-32 md:w-48" id="currentTrackTitle">Belum ada lagu</a>
-                <a href="#" class="text-xs text-spotify-text hover:underline hover:text-white truncate-text" id="currentTrackArtist">Pilih file lokal</a>
+            <div class="border-top border-secondary pt-3">
+                <span class="text-muted small d-block mb-2">Login sebagai: <strong id="lblUser" class="text-white"></strong></span>
+                <button class="btn btn-outline-danger btn-sm w-100" onclick="logout()"><i class="fa-solid fa-right-from-bracket me-1"></i> Keluar</button>
             </div>
-            <button class="text-spotify-text hover:text-spotify-green hidden sm:block">
-                <i class="far fa-heart"></i>
-            </button>
         </div>
 
-        <!-- Kontrol Pemutar Pusat -->
-        <div class="flex flex-col items-center justify-center w-1/3 max-w-2xl">
-            <!-- Tombol-tombol kontrol -->
-            <div class="flex items-center gap-6 mb-2">
-                <button class="text-spotify-text hover:text-white text-lg"><i class="fas fa-random"></i></button>
-                <button class="text-spotify-text hover:text-white text-xl" id="prevBtn"><i class="fas fa-step-backward"></i></button>
-                
-                <!-- Tombol Play/Pause Utama -->
-                <button class="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition hover:bg-gray-200" id="playPauseBtn">
-                    <i class="fas fa-play ml-0.5" id="playIcon"></i>
-                    <i class="fas fa-pause hidden" id="pauseIcon"></i>
-                </button>
-                
-                <button class="text-spotify-text hover:text-white text-xl" id="nextBtn"><i class="fas fa-step-forward"></i></button>
-                <button class="text-spotify-text hover:text-white text-lg"><i class="fas fa-redo-alt"></i></button>
-            </div>
-            
-            <!-- Progress Bar -->
-            <div class="w-full flex items-center gap-2 text-xs text-spotify-text">
-                <span id="currentTimeDisplay">0:00</span>
-                <!-- Bar interaktif -->
-                <div class="h-1 bg-spotify-lightgray rounded-full flex-1 cursor-pointer relative group" id="progressBarContainer">
-                    <!-- Garis progress -->
-                    <div class="h-full bg-white group-hover:bg-spotify-green rounded-full progress-bar-fill absolute top-0 left-0" style="width: 0%;" id="progressBar"></div>
-                    <!-- Lingkaran kecil di ujung (muncul saat hover) -->
-                    <div class="w-3 h-3 bg-white rounded-full absolute top-1/2 -translate-y-1/2 -ml-1.5 opacity-0 group-hover:opacity-100 shadow" id="progressThumb" style="left: 0%;"></div>
+        <!-- Content Area -->
+        <div class="main-content">
+            <!-- TAB BERANDA -->
+            <div id="tabHome">
+                <h2 class="fw-bold mb-4">Koleksi Musik Cloud</h2>
+                <div id="songList" class="row g-4">
+                    <!-- Data lagu dimuat secara real-time dari database -->
+                    <div class="text-muted">Memuat musik dari server...</div>
                 </div>
-                <span id="durationDisplay">0:00</span>
             </div>
-        </div>
 
-        <!-- Kontrol Ekstra Kanan (Volume) -->
-        <div class="flex items-center justify-end gap-3 w-1/3 text-spotify-text hidden sm:flex">
-            <button class="hover:text-white"><i class="fas fa-microphone-alt"></i></button>
-            <button class="hover:text-white"><i class="fas fa-bars"></i></button>
-            <button class="hover:text-white"><i class="fas fa-desktop"></i></button>
-            
-            <div class="flex items-center gap-2 w-24 group cursor-pointer" id="volumeControlGroup">
-                <i class="fas fa-volume-up hover:text-white w-4 text-center" id="muteIcon"></i>
-                <div class="h-1 bg-spotify-lightgray rounded-full flex-1 relative" id="volumeContainer">
-                    <div class="h-full bg-white group-hover:bg-spotify-green rounded-full absolute top-0 left-0" style="width: 100%;" id="volumeBar"></div>
-                    <div class="w-3 h-3 bg-white rounded-full absolute top-1/2 -translate-y-1/2 -ml-1.5 opacity-0 group-hover:opacity-100 shadow" id="volumeThumb" style="left: 100%;"></div>
+            <!-- TAB UPLOAD -->
+            <div id="tabUpload" class="d-none">
+                <h2 class="fw-bold mb-4">Unggah Musik Baru ke Cloudinary</h2>
+                <div class="card bg-panel border-secondary p-4" style="max-width: 600px; background-color: var(--bg-panel);">
+                    <form id="uploadForm" onsubmit="handleUploadMusic(event)">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Judul Lagu</label>
+                            <input type="text" id="upTitle" class="form-control bg-dark text-white border-secondary" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Nama Artis / Penyanyi</label>
+                            <input type="text" id="upArtist" class="form-control bg-dark text-white border-secondary" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">File Audio MP3/WAV</label>
+                            <input type="file" id="upAudioFile" class="form-control bg-dark text-white border-secondary" accept="audio/*" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-muted">Gambar Sampul Album (Cover)</label>
+                            <input type="file" id="upCoverFile" class="form-control bg-dark text-white border-secondary" accept="image/*" required>
+                        </div>
+                        <button type="submit" id="btnUploadSubmit" class="btn btn-success w-100 fw-bold">Unggah ke Cloud</button>
+                    </form>
                 </div>
             </div>
         </div>
-    </footer>
 
-    <!-- Elemen Audio Tersembunyi (Inti Pemutar) -->
-    <audio id="audioPlayer" class="hidden"></audio>
+        <!-- PLAYER BAR BAWAH -->
+        <div class="player-bar">
+            <div class="d-flex align-items-center" style="width: 30%;">
+                <img id="playerCover" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100" class="rounded me-3" style="width: 55px; height: 55px; object-fit: cover;">
+                <div>
+                    <h6 id="playerTitle" class="m-0 text-white text-truncate" style="max-width: 200px;">Pilih Lagu</h6>
+                    <small id="playerArtist" class="text-muted">PinuPlay Cloud</small>
+                </div>
+            </div>
+            <div class="d-flex flex-column align-items-center" style="width: 40%;">
+                <div class="player-controls mb-1">
+                    <button onclick="prevSong()"><i class="fa-solid fa-backward-step"></i></button>
+                    <button class="btn-play" onclick="togglePlay()"><i id="playIcon" class="fa-solid fa-play"></i></button>
+                    <button onclick="nextSong()"><i class="fa-solid fa-forward-step"></i></button>
+                </div>
+                <div class="w-100 d-flex align-items-center gap-2">
+                    <small id="currentTime" class="text-muted">0:00</small>
+                    <div class="progress-bar-custom" id="progressBar" onclick="seekAudio(event)">
+                        <div class="progress-filled" id="progressFilled"></div>
+                    </div>
+                    <small id="durationTime" class="text-muted">0:00</small>
+                </div>
+            </div>
+            <div style="width: 30%;"></div>
+        </div>
+    </div>
+
+    <!-- Audio Element -->
+    <audio id="audioPlayer" ontimeupdate="updateProgress()" onended="nextSong()"></audio>
 
     <script>
-        // DOM Elements
-        const audioInput = document.getElementById('audioUpload');
-        const audioPlayer = document.getElementById('audioPlayer');
-        
-        const playPauseBtn = document.getElementById('playPauseBtn');
-        const playIcon = document.getElementById('playIcon');
-        const pauseIcon = document.getElementById('pauseIcon');
-        
-        const progressBarContainer = document.getElementById('progressBarContainer');
-        const progressBar = document.getElementById('progressBar');
-        const progressThumb = document.getElementById('progressThumb');
-        
-        const currentTimeDisplay = document.getElementById('currentTimeDisplay');
-        const durationDisplay = document.getElementById('durationDisplay');
-        
-        const currentTrackTitle = document.getElementById('currentTrackTitle');
-        const currentTrackArtist = document.getElementById('currentTrackArtist');
-        const currentCoverInfo = document.getElementById('currentCoverInfo');
-        
-        const emptyState = document.getElementById('emptyState');
-        const songListContainer = document.getElementById('songListContainer');
-        const songListBody = document.getElementById('songListBody');
+        // Konfigurasi Firebase Realtime Database
+        const firebaseConfig = {
+            databaseURL: "https://pinuplay-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // Volume DOM Elements
-        const volumeContainer = document.getElementById('volumeContainer');
-        const volumeBar = document.getElementById('volumeBar');
-        const volumeThumb = document.getElementById('volumeThumb');
-        const muteIcon = document.getElementById('muteIcon');
+        // Kredensial Cloudinary Anda
+        const CLOUD_NAME = "gyqyo2kv";
+        const UPLOAD_PRESET = "pinuplay_unsigned"; // Anda bisa buat unsigned preset di dashboard Cloudinary Anda
 
-        // State aplikasi
-        let playlist = []; // Menyimpan file objek
-        let currentTrackIndex = -1;
+        let currentUser = localStorage.getItem('pinu_user');
+        let songsDatabase = [];
+        let currentSongIndex = 0;
         let isPlaying = false;
 
-        // Fungsi Helper untuk format waktu (detik ke M:SS)
-        function formatTime(seconds) {
-            if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
-            const min = Math.floor(seconds / 60);
-            const sec = Math.floor(seconds % 60);
-            return `${min}:${sec.toString().padStart(2, '0')}`;
-        }
-        
-        // Fungsi Helper untuk format ukuran file (Bytes ke MB)
-        function formatSize(bytes) {
-            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-        }
+        const audioPlayer = document.getElementById('audioPlayer');
 
-        // Event Listener untuk Upload File
-        audioInput.addEventListener('change', function(e) {
-            const files = e.target.files;
-            if (files.length > 0) {
-                const file = files[0];
-                
-                // Cek apakah file adalah audio
-                if (!file.type.startsWith('audio/')) {
-                    alert('Harap pilih file audio (.mp3, .wav, dll)');
-                    return;
-                }
-
-                // Tambahkan ke playlist lokal kita
-                playlist.push(file);
-                
-                // Sembunyikan state kosong, tampilkan tabel
-                emptyState.classList.add('hidden');
-                songListContainer.classList.remove('hidden');
-                
-                // Tambahkan baris ke tabel
-                renderPlaylist();
-
-                // Jika ini lagu pertama, atau ingin langsung diputar
-                if (playlist.length === 1 || currentTrackIndex === -1) {
-                    loadTrack(0);
-                    // playTrack(); // Opsional: langsung putar otomatis
-                }
+        // Cek Sesi Login Awal
+        window.addEventListener('DOMContentLoaded', () => {
+            if (currentUser) {
+                showApp();
             }
         });
 
-        // Merender ulang daftar lagu di tabel
-        function renderPlaylist() {
-            songListBody.innerHTML = ''; // Bersihkan dulu
-            
-            playlist.forEach((file, index) => {
-                const tr = document.createElement('tr');
-                // Beri warna khusus jika lagu ini yang sedang diputar
-                const isCurrent = index === currentTrackIndex;
-                tr.className = `group hover:bg-spotify-lightgray transition cursor-pointer ${isCurrent ? 'text-spotify-green' : 'text-white'}`;
-                
-                tr.innerHTML = `
-                    <td class="py-3 text-center rounded-l-lg w-8 relative">
-                        <span class="group-hover:hidden ${isCurrent ? 'hidden' : 'block'} text-spotify-text">${index + 1}</span>
-                        ${isCurrent && isPlaying ? '<i class="fas fa-chart-bar group-hover:hidden text-spotify-green animate-pulse"></i>' : ''}
-                        ${isCurrent && !isPlaying ? '<span class="group-hover:hidden text-spotify-green">' + (index+1) + '</span>' : ''}
-                        <button class="hidden group-hover:block mx-auto text-white" onclick="event.stopPropagation(); playSpecificTrack(${index})">
-                            <i class="fas ${isCurrent && isPlaying ? 'fa-pause' : 'fa-play'}"></i>
-                        </button>
-                    </td>
-                    <td class="py-3">
-                        <div class="truncate-text max-w-[200px] md:max-w-xs font-medium">${file.name.replace(/\.[^/.]+$/, "")}</div>
-                        <div class="text-xs ${isCurrent ? 'text-gray-300' : 'text-spotify-text'}">File Lokal</div>
-                    </td>
-                    <td class="py-3 hidden md:table-cell text-sm ${isCurrent ? 'text-gray-300' : 'text-spotify-text'}">${formatSize(file.size)}</td>
-                    <td class="py-3 text-right pr-4 rounded-r-lg text-sm ${isCurrent ? 'text-gray-300' : 'text-spotify-text'}">--:--</td>
-                `;
-                
-                // Klik baris untuk memutar lagu
-                tr.addEventListener('click', () => {
-                    if (index !== currentTrackIndex) {
-                        playSpecificTrack(index);
-                    }
-                });
-                
-                songListBody.appendChild(tr);
+        // Autentikasi User sederhana tersimpan di Database Cloud
+        function handleAuth(e) {
+            e.preventDefault();
+            const username = document.getElementById('authUsername').value.trim();
+            const pass = document.getElementById('authPassword').value.trim();
+
+            db.ref('users/' + username).once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) {
+                    // Daftar akun baru otomatis
+                    db.ref('users/' + username).set({ password: pass });
+                    loginSuccess(username);
+                } else if (data.password === pass) {
+                    loginSuccess(username);
+                } else {
+                    showAuthError("Password salah!");
+                }
             });
         }
 
-        // Fungsi Memuat Lagu ke Audio Element
-        function loadTrack(index) {
-            if (index < 0 || index >= playlist.length) return;
-            
-            currentTrackIndex = index;
-            const file = playlist[index];
-            
-            // Buat URL sementara untuk file lokal agar bisa diputar
-            const objectUrl = URL.createObjectURL(file);
-            audioPlayer.src = objectUrl;
-            
-            // Update UI Player Bawah
-            currentTrackTitle.textContent = file.name.replace(/\.[^/.]+$/, "");
-            currentTrackArtist.textContent = "File Lokal";
-            currentCoverInfo.innerHTML = '<i class="fas fa-file-audio text-2xl text-spotify-green"></i>';
-            
-            // Reset Progress UI
-            progressBar.style.width = '0%';
-            progressThumb.style.left = '0%';
-            currentTimeDisplay.textContent = '0:00';
-            
-            // Render ulang daftar untuk mengupdate warna indikator lagu aktif
-            renderPlaylist();
+        function loginSuccess(username) {
+            currentUser = username;
+            localStorage.setItem('pinu_user', username);
+            showApp();
         }
 
-        // Fungsi Memutar Lagu Spesifik
-        window.playSpecificTrack = function(index) {
-            loadTrack(index);
-            playTrack();
-        };
-
-        // Fungsi Play
-        function playTrack() {
-            if (!audioPlayer.src) return;
-            
-            audioPlayer.play().then(() => {
-                isPlaying = true;
-                playIcon.classList.add('hidden');
-                pauseIcon.classList.remove('hidden');
-                renderPlaylist(); // Update icon play/pause di list
-            }).catch(e => console.error("Error memutar audio:", e));
+        function showAuthError(msg) {
+            const alertBox = document.getElementById('authAlert');
+            alertBox.innerText = msg;
+            alertBox.classList.remove('d-none');
         }
 
-        // Fungsi Pause
-        function pauseTrack() {
-            audioPlayer.pause();
-            isPlaying = false;
-            playIcon.classList.remove('hidden');
-            pauseIcon.classList.add('hidden');
-            renderPlaylist(); // Update icon play/pause di list
+        function logout() {
+            localStorage.removeItem('pinu_user');
+            location.reload();
         }
 
-        // Toggle Play/Pause dari Tombol Utama
-        playPauseBtn.addEventListener('click', () => {
-            if (!audioPlayer.src) {
-                // Jika belum ada lagu, coba klik input file
-                audioInput.click();
+        function showApp() {
+            document.getElementById('authScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            document.getElementById('lblUser').innerText = currentUser;
+            fetchSongsFromCloud();
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.sidebar .nav-link').forEach(el => el.classList.remove('active'));
+            if (tab === 'home') {
+                document.getElementById('tabHome').classList.remove('d-none');
+                document.getElementById('tabUpload').classList.add('d-none');
+                event.target.classList.add('active');
+            } else if (tab === 'upload') {
+                document.getElementById('tabHome').classList.add('d-none');
+                document.getElementById('tabUpload').classList.remove('d-none');
+                event.target.classList.add('active');
+            }
+        }
+
+        // Ambil Data Lagu secara Realtime dari Cloud Database
+        function fetchSongsFromCloud() {
+            db.ref('songs').on('value', (snapshot) => {
+                const data = snapshot.val();
+                songsDatabase = [];
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        songsDatabase.push({ id: key, ...data[key] });
+                    });
+                }
+                renderSongList();
+            });
+        }
+
+        function renderSongList() {
+            const container = document.getElementById('songList');
+            if (songsDatabase.length === 0) {
+                container.innerHTML = `<p class="text-muted">Belum ada lagu di cloud. Silakan unggah melalui menu Unggah Musik.</p>`;
                 return;
             }
-            if (isPlaying) {
-                pauseTrack();
-            } else {
-                playTrack();
-            }
-        });
 
-        // Event: Saat metadata lagu sudah termuat (bisa tahu durasi)
-        audioPlayer.addEventListener('loadedmetadata', () => {
-            durationDisplay.textContent = formatTime(audioPlayer.duration);
-        });
-
-        // Event: Update Progress Bar saat lagu berjalan
-        audioPlayer.addEventListener('timeupdate', () => {
-            const currentTime = audioPlayer.currentTime;
-            const duration = audioPlayer.duration;
-            
-            if (duration) {
-                const progressPercent = (currentTime / duration) * 100;
-                progressBar.style.width = `${progressPercent}%`;
-                progressThumb.style.left = `${progressPercent}%`;
-                currentTimeDisplay.textContent = formatTime(currentTime);
-            }
-        });
-
-        // Event: Lagu selesai
-        audioPlayer.addEventListener('ended', () => {
-            pauseTrack();
-            progressBar.style.width = '0%';
-            progressThumb.style.left = '0%';
-            currentTimeDisplay.textContent = '0:00';
-            // Bisa tambahkan logika ke lagu berikutnya di sini jika playlist > 1
-            if(currentTrackIndex < playlist.length - 1) {
-                playSpecificTrack(currentTrackIndex + 1);
-            }
-        });
-
-        // Seek / Lompat waktu klik pada progress bar
-        progressBarContainer.addEventListener('click', (e) => {
-            if (!audioPlayer.src) return;
-            
-            const rect = progressBarContainer.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const width = rect.width;
-            const clickRatio = clickX / width;
-            
-            // Lompat ke waktu baru
-            audioPlayer.currentTime = clickRatio * audioPlayer.duration;
-        });
-
-        // Fungsi Next/Prev dasar
-        document.getElementById('nextBtn').addEventListener('click', () => {
-            if (playlist.length > 0 && currentTrackIndex < playlist.length - 1) {
-                playSpecificTrack(currentTrackIndex + 1);
-            }
-        });
-        document.getElementById('prevBtn').addEventListener('click', () => {
-            if (playlist.length > 0) {
-                if (audioPlayer.currentTime > 3) {
-                    audioPlayer.currentTime = 0; // Mulai ulang lagu jika sudah agak jauh
-                } else if (currentTrackIndex > 0) {
-                    playSpecificTrack(currentTrackIndex - 1); // Balik ke lagu sebelumnya
-                }
-            }
-        });
-
-        // Bersihkan memori saat tab ditutup agar object URL tidak nyangkut
-        window.addEventListener('beforeunload', () => {
-            if (audioPlayer.src.startsWith('blob:')) {
-                URL.revokeObjectURL(audioPlayer.src);
-            }
-        });
-
-        // --- Volume Control Logic ---
-        let currentVolume = 1.0; // Volume default 100%
-        audioPlayer.volume = currentVolume;
-        
-        // Fungsi untuk mengupdate tampilan UI Bar Volume
-        function updateVolumeUI(volume) {
-            const percent = volume * 100;
-            volumeBar.style.width = `${percent}%`;
-            volumeThumb.style.left = `${percent}%`;
-            
-            // Ganti ikon sesuai level volume
-            muteIcon.className = 'hover:text-white w-4 text-center cursor-pointer transition ' + 
-                (volume === 0 ? 'fas fa-volume-mute' : 
-                 volume < 0.5 ? 'fas fa-volume-down' : 
-                 'fas fa-volume-up');
+            let html = "";
+            songsDatabase.forEach((song, index) => {
+                html += `
+                    <div class="col-md-3">
+                        <div class="card music-card p-3 h-100" onclick="playSong(${index})">
+                            <img src="${song.coverUrl}" class="album-art mb-3" alt="Cover">
+                            <h5 class="text-white text-truncate mb-1">${song.title}</h5>
+                            <small class="text-muted text-truncate">${song.artist}</small>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
         }
 
-        // Event listener saat bar volume diklik
-        volumeContainer.addEventListener('click', (e) => {
-            const rect = volumeContainer.getBoundingClientRect();
-            let clickX = e.clientX - rect.left;
-            
-            // Pastikan nilai tidak keluar dari batas (0 hingga lebar bar)
-            clickX = Math.max(0, Math.min(clickX, rect.width));
-            
-            // Hitung rasio volume (0.0 sampai 1.0)
-            let newVolume = clickX / rect.width;
-            
-            audioPlayer.volume = newVolume;
-            currentVolume = newVolume; // Simpan ke state
-            updateVolumeUI(newVolume);
-        });
-        
-        // Event listener untuk fungsi Mute/Unmute saat icon speaker diklik
-        muteIcon.addEventListener('click', () => {
-            if (audioPlayer.volume > 0) {
-                // Bisukan
-                audioPlayer.volume = 0;
-                updateVolumeUI(0);
-            } else {
-                // Kembalikan ke volume sebelumnya atau maksimal
-                audioPlayer.volume = currentVolume > 0 ? currentVolume : 1.0;
-                updateVolumeUI(audioPlayer.volume);
-            }
-        });
+        // Fungsi Unggah File ke Cloudinary
+        async function uploadToCloudinary(file, resourceType = 'auto') {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', UPLOAD_PRESET);
 
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.secure_url) {
+                return data.secure_url;
+            } else {
+                throw new Error("Gagal mengunggah ke Cloudinary. Pastikan preset unsigned sudah diaktifkan di dashboard Cloudinary Anda.");
+            }
+        }
+
+        async function handleUploadMusic(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnUploadSubmit');
+            btn.disabled = true;
+            btn.innerText = "Mengunggah ke Cloud...";
+
+            try {
+                const title = document.getElementById('upTitle').value;
+                const artist = document.getElementById('upArtist').value;
+                const audioFile = document.getElementById('upAudioFile').files[0];
+                const coverFile = document.getElementById('upCoverFile').files[0];
+
+                const audioUrl = await uploadToCloudinary(audioFile, 'video'); // Cloudinary menggunakan resource type video untuk audio mp3
+                const coverUrl = await uploadToCloudinary(coverFile, 'image');
+
+                // Simpan ke Realtime Database agar tersinkronisasi di semua komputer
+                await db.ref('songs').push({
+                    title: title,
+                    artist: artist,
+                    audioUrl: audioUrl,
+                    coverUrl: coverUrl,
+                    uploader: currentUser
+                });
+
+                alert("Musik berhasil diunggah dan disinkronkan ke cloud database!");
+                document.getElementById('uploadForm').reset();
+                switchTab('home');
+                document.querySelector('.sidebar .nav-link').classList.add('active');
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Unggah ke Cloud";
+            }
+        }
+
+        // Pemutar Musik
+        function playSong(index) {
+            currentSongIndex = index;
+            const song = songsDatabase[index];
+
+            document.getElementById('playerTitle').innerText = song.title;
+            document.getElementById('playerArtist').innerText = song.artist;
+            document.getElementById('playerCover').src = song.coverUrl;
+
+            audioPlayer.src = song.audioUrl;
+            audioPlayer.play();
+            isPlaying = true;
+            document.getElementById('playIcon').className = "fa-solid fa-pause";
+        }
+
+        function togglePlay() {
+            if (songsDatabase.length === 0) return;
+            if (isPlaying) {
+                audioPlayer.pause();
+                isPlaying = false;
+                document.getElementById('playIcon').className = "fa-solid fa-play";
+            } else {
+                if (!audioPlayer.src) playSong(0);
+                else audioPlayer.play();
+                isPlaying = true;
+                document.getElementById('playIcon').className = "fa-solid fa-pause";
+            }
+        }
+
+        function nextSong() {
+            if (songsDatabase.length === 0) return;
+            currentSongIndex = (currentSongIndex + 1) % songsDatabase.length;
+            playSong(currentSongIndex);
+        }
+
+        function prevSong() {
+            if (songsDatabase.length === 0) return;
+            currentSongIndex = (currentSongIndex - 1 + songsDatabase.length) % songsDatabase.length;
+            playSong(currentSongIndex);
+        }
+
+        function updateProgress() {
+            if (isNaN(audioPlayer.duration)) return;
+            const progressPercent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+            document.getElementById('progressFilled').style.width = progressPercent + '%';
+
+            document.getElementById('currentTime').innerText = formatTime(audioPlayer.currentTime);
+            document.getElementById('durationTime').innerText = formatTime(audioPlayer.duration);
+        }
+
+        function seekAudio(e) {
+            const width = document.getElementById('progressBar').clientWidth;
+            const clickX = e.offsetX;
+            const duration = audioPlayer.duration;
+            audioPlayer.currentTime = (clickX / width) * duration;
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
     </script>
 </body>
 </html>
