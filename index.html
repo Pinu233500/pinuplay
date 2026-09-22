@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PinuPlay - Cloud Music Streaming</title>
+    <title>PinuPlay - Auto Cloud Sync</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome -->
@@ -59,6 +59,7 @@
             border-radius: 8px;
             transition: all 0.3s ease;
             margin-bottom: 5px;
+            cursor: pointer;
         }
 
         .nav-link:hover, .nav-link.active {
@@ -96,6 +97,7 @@
             height: 160px;
             border-radius: 12px;
             overflow: hidden;
+            background: #000;
         }
 
         .album-art {
@@ -220,16 +222,12 @@
             <div>
                 <h3 class="brand-title mb-4"><i class="fa-solid fa-music me-2"></i>PinuPlay</h3>
                 <ul class="nav flex-column gap-2">
-                    <li class="nav-item"><a class="nav-link active" href="#" onclick="switchTab('home', event)"><i class="fa-solid fa-house me-2"></i> Beranda</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#" onclick="switchTab('upload', event)"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Unggah</a></li>
+                    <li class="nav-item"><a class="nav-link active" onclick="switchTab('home', event)"><i class="fa-solid fa-house me-2"></i> Beranda</a></li>
+                    <li class="nav-item"><a class="nav-link" onclick="switchTab('upload', event)"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Unggah</a></li>
                 </ul>
             </div>
             <div class="border-top border-secondary pt-3">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <div class="bg-success rounded-circle d-flex align-items-center justify-content-center text-black fw-bold" style="width: 30px; height: 30px; font-size: 0.85rem;" id="userInitial">P</div>
-                    <span class="text-white small text-truncate" id="lblUser">PinuUser</span>
-                </div>
-                <button class="btn btn-outline-light btn-sm w-100 rounded-pill" onclick="refreshData()"><i class="fa-solid fa-rotate me-1"></i> Segarkan Data</button>
+                <button class="btn btn-outline-light btn-sm w-100 rounded-pill" onclick="fetchCloudinarySongs()"><i class="fa-solid fa-rotate me-1"></i> Refresh Lagu</button>
             </div>
         </div>
 
@@ -238,36 +236,25 @@
             <!-- TAB BERANDA -->
             <div id="tabHome">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="fw-bold m-0">Koleksi Musik Cloud</h3>
+                    <h3 class="fw-bold m-0">Koleksi Musik Cloudinary</h3>
                 </div>
                 <div id="songList" class="row g-3">
                     <div class="col-12 text-center py-5">
                         <div class="text-muted mb-3" style="font-size: 3rem;"><i class="fa-solid fa-compact-disc fa-spin"></i></div>
-                        <h4 class="text-white">Memuat lagu dari cloud...</h4>
+                        <h4 class="text-white">Mengambil lagu langsung dari Cloudinary...</h4>
                     </div>
                 </div>
             </div>
 
             <!-- TAB UPLOAD -->
             <div id="tabUpload" class="d-none">
-                <h3 class="fw-bold mb-4">Unggah Musik ke Cloud</h3>
+                <h3 class="fw-bold mb-4">Unggah File Lagu Baru</h3>
                 <div class="upload-card p-3 p-md-5" style="max-width: 650px;">
                     <form id="uploadForm" onsubmit="handleUploadMusic(event)">
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-semibold">PILIH FILE AUDIO (.MP3 / .WAV)</label>
-                            <input type="file" id="upAudioFile" class="form-control" accept="audio/*" onchange="autoFillTitle(this)" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-semibold">JUDUL LAGU</label>
-                            <input type="text" id="upTitle" class="form-control" placeholder="Judul otomatis dari file..." required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-semibold">NAMA ARTIS / PENYANYI</label>
-                            <input type="text" id="upArtist" class="form-control" placeholder="Contoh: Pinu Band" value="Unknown Artist" required>
-                        </div>
                         <div class="mb-4">
-                            <label class="form-label text-muted small fw-semibold">GAMBAR SAMPUL ALBUM (COVER)</label>
-                            <input type="file" id="upCoverFile" class="form-control" accept="image/*" required>
+                            <label class="form-label text-muted small fw-semibold">PILIH FILE AUDIO (.MP3 / .WAV)</label>
+                            <input type="file" id="upAudioFile" class="form-control" accept="audio/*" required>
+                            <small class="text-muted mt-1 d-block">File akan diunggah ke Cloudinary dan otomatis tampil di daftar lagu.</small>
                         </div>
                         <button type="submit" id="btnUploadSubmit" class="btn btn-success w-100 py-3 fw-bold rounded-pill shadow-sm" style="background-color: var(--accent); border: none; color: #000;">Unggah ke Cloud Sekarang</button>
                     </form>
@@ -281,7 +268,7 @@
                 <img id="playerCover" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100" class="rounded-3 me-2 shadow" style="width: 48px; height: 48px; object-fit: cover;">
                 <div class="overflow-hidden">
                     <h6 id="playerTitle" class="m-0 text-white text-truncate" style="font-size: 0.9rem;">Pilih Lagu</h6>
-                    <small id="playerArtist" class="text-muted text-truncate d-block" style="font-size: 0.75rem;">PinuPlay</small>
+                    <small id="playerArtist" class="text-muted text-truncate d-block" style="font-size: 0.75rem;">Cloudinary Stream</small>
                 </div>
             </div>
             <div class="d-flex flex-column align-items-center" style="width: 50%;">
@@ -312,10 +299,6 @@
         const CLOUD_NAME = "gyqyo2kv";
         const UPLOAD_PRESET = "pinuplay_unsigned";
 
-        // Menggunakan JSONBin.io publik sebagai wadah database lagu bersama
-        const JSONBIN_URL = "https://api.jsonbin.io/v3/b/66f1207ead19ca34f8a127f8"; // Public Bin untuk PinuPlay
-        const JSONBIN_KEY = "$2a$10$9F... (Free Tier)"; // Kosongkan atau gunakan master key jika perlu
-
         let songsDatabase = [];
         let currentSongIndex = 0;
         let isPlaying = false;
@@ -323,53 +306,38 @@
         const audioPlayer = document.getElementById('audioPlayer');
 
         window.addEventListener('DOMContentLoaded', () => {
-            fetchSongsFromCloud();
+            fetchCloudinarySongs();
         });
 
-        async function fetchSongsFromCloud() {
+        // Mengambil daftar file audio langsung dari Cloudinary Search/List API publik
+        async function fetchCloudinarySongs() {
             try {
-                const res = await fetch(JSONBIN_URL + "/latest", {
-                    headers: { "X-Master-Key": "$2a$10$7Z8V..." } // Optional
-                });
-                const result = await res.json();
-                if (result && result.record && Array.isArray(result.record.songs)) {
-                    songsDatabase = result.record.songs;
+                // Menggunakan public URL Cloudinary API untuk melist resource bertipe video/audio
+                const res = await fetch(`https://res.cloudinary.com/${CLOUD_NAME}/video/list/json`);
+                const data = await res.json();
+                
+                if (data && data.resources) {
+                    songsDatabase = data.resources.map(item => {
+                        // Buat URL streaming langsung dari public_id
+                        const audioUrl = `https://res.cloudinary.com/${CLOUD_NAME}/video/upload/${item.public_id}.${item.format}`;
+                        // Cover default album yang keren
+                        const coverUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300";
+                        
+                        return {
+                            title: item.public_id.replace(/[-_]/g, ' '),
+                            artist: "Cloudinary Audio",
+                            audioUrl: audioUrl,
+                            coverUrl: coverUrl
+                        };
+                    });
                 } else {
                     songsDatabase = [];
                 }
             } catch (err) {
-                // Fallback ke localStorage jika jaringan bermasalah
-                songsDatabase = JSON.parse(localStorage.getItem('pinu_songs')) || [];
+                console.log("Gagal memuat otomatis dari list Cloudinary, pastikan fitur resource list aktif atau gunakan backup.");
+                songsDatabase = [];
             }
             renderSongList();
-        }
-
-        async function saveSongsToCloud() {
-            try {
-                await fetch(JSONBIN_URL, {
-                    method: 'PUT',
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ songs: songsDatabase })
-                });
-            } catch (err) {
-                console.log("Gagal simpan ke cloud JSONBin, tersimpan di lokal.");
-            }
-            localStorage.setItem('pinu_songs', JSON.stringify(songsDatabase));
-        }
-
-        function refreshData() {
-            alert("Memperbarui daftar lagu dari cloud...");
-            fetchSongsFromCloud();
-        }
-
-        function autoFillTitle(input) {
-            if (input.files && input.files[0]) {
-                let fileName = input.files[0].name;
-                let cleanName = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
-                document.getElementById('upTitle').value = cleanName;
-            }
         }
 
         function switchTab(tab, event) {
@@ -377,11 +345,11 @@
             if (tab === 'home') {
                 document.getElementById('tabHome').classList.remove('d-none');
                 document.getElementById('tabUpload').classList.add('d-none');
-                event.currentTarget.classList.add('active');
+                if (event) event.currentTarget.classList.add('active');
             } else if (tab === 'upload') {
                 document.getElementById('tabHome').classList.add('d-none');
                 document.getElementById('tabUpload').classList.remove('d-none');
-                event.currentTarget.classList.add('active');
+                if (event) event.currentTarget.classList.add('active');
             }
         }
 
@@ -391,8 +359,8 @@
                 container.innerHTML = `
                     <div class="col-12 text-center py-5">
                         <div class="text-muted mb-3" style="font-size: 3rem;"><i class="fa-solid fa-compact-disc"></i></div>
-                        <h4 class="text-white">Belum ada lagu</h4>
-                        <p class="text-muted small">Unggah musik melalui menu <strong>Unggah</strong>.</p>
+                        <h4 class="text-white">Belum ada lagu terdeteksi</h4>
+                        <p class="text-muted small">Unggah file lagu baru atau klik tombol <strong>Refresh Lagu</strong> di menu.</p>
                     </div>`;
                 return;
             }
@@ -419,56 +387,35 @@
             container.innerHTML = html;
         }
 
-        async function uploadToCloudinary(file, resourceType = 'auto') {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('upload_preset', UPLOAD_PRESET);
-
-            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`, {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            if (data.secure_url) {
-                return data.secure_url;
-            } else {
-                throw new Error("Gagal mengunggah ke Cloudinary.");
-            }
-        }
-
         async function handleUploadMusic(e) {
             e.preventDefault();
             const btn = document.getElementById('btnUploadSubmit');
             btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah ke Cloud...`;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah ke Cloudinary...`;
 
             try {
-                const title = document.getElementById('upTitle').value;
-                const artist = document.getElementById('upArtist').value;
                 const audioFile = document.getElementById('upAudioFile').files[0];
-                const coverFile = document.getElementById('upCoverFile').files[0];
+                const formData = new FormData();
+                formData.append('file', audioFile);
+                formData.append('upload_preset', UPLOAD_PRESET);
 
-                const audioUrl = await uploadToCloudinary(audioFile, 'video');
-                const coverUrl = await uploadToCloudinary(coverFile, 'image');
-
-                songsDatabase.push({
-                    title: title,
-                    artist: artist,
-                    audioUrl: audioUrl,
-                    coverUrl: coverUrl
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, {
+                    method: 'POST',
+                    body: formData
                 });
-
-                await saveSongsToCloud();
-
-                alert("Berhasil! Lagu tersimpan di cloud dan otomatis sinkron ke HP.");
-                document.getElementById('uploadForm').reset();
+                const data = await res.json();
                 
-                document.getElementById('tabHome').classList.remove('d-none');
-                document.getElementById('tabUpload').classList.add('d-none');
-                document.querySelectorAll('.sidebar .nav-link')[0].classList.add('active');
-                document.querySelectorAll('.sidebar .nav-link')[1].classList.remove('active');
-                
-                renderSongList();
+                if (data.secure_url) {
+                    alert("Berhasil mengunggah file lagu ke Cloudinary!");
+                    document.getElementById('uploadForm').reset();
+                    
+                    // Pindah ke beranda dan muat ulang daftar lagu
+                    switchTab('home');
+                    document.querySelectorAll('.sidebar .nav-link')[0].classList.add('active');
+                    fetchCloudinarySongs();
+                } else {
+                    throw new Error("Gagal mengunggah file.");
+                }
             } catch (err) {
                 alert(err.message);
             } finally {
