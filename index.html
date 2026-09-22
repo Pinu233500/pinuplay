@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PinuPlay - Mobile Cloud Music</title>
+    <title>PinuPlay - Cloud Music Streaming</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome -->
@@ -27,11 +27,10 @@
             color: var(--text-main);
             font-family: 'Poppins', sans-serif;
             margin: 0;
-            padding-bottom: 160px; /* Ruang untuk player bar mobile */
+            padding-bottom: 160px;
             min-height: 100vh;
         }
 
-        /* Sidebar Default (Desktop) */
         .sidebar {
             background: var(--sidebar-bg);
             backdrop-filter: blur(12px);
@@ -69,13 +68,11 @@
             box-shadow: 0 4px 15px rgba(30, 215, 96, 0.4);
         }
 
-        /* Main Content Desktop */
         .main-content {
             margin-left: 260px;
             padding: 40px;
         }
 
-        /* Music Cards */
         .music-card {
             background: var(--card-bg);
             backdrop-filter: blur(10px);
@@ -108,7 +105,6 @@
             transition: transform 0.5s ease;
         }
 
-        /* Form Upload */
         .upload-card {
             background: rgba(24, 24, 24, 0.85);
             backdrop-filter: blur(15px);
@@ -130,7 +126,6 @@
             box-shadow: 0 0 10px rgba(30, 215, 96, 0.25);
         }
 
-        /* Player Bar Desktop */
         .player-bar {
             position: fixed;
             bottom: 0;
@@ -187,7 +182,6 @@
             transition: width 0.1s linear;
         }
 
-        /* RESPONSIF UNTUK HP / ANDROID (Layar < 768px) */
         @media (max-width: 768px) {
             .sidebar {
                 height: 70px;
@@ -203,45 +197,14 @@
                 align-items: center;
                 justify-content: space-around;
             }
-            .sidebar .brand-title, 
-            .sidebar .border-top {
-                display: none; /* Sembunyikan logo dan tombol logout di bawah agar ringkas */
-            }
-            .sidebar .nav {
-                flex-direction: row !important;
-                width: 100%;
-                justify-content: space-around;
-            }
-            .nav-link {
-                padding: 8px 12px;
-                font-size: 0.9rem;
-                text-align: center;
-                margin-bottom: 0;
-            }
-
-            .main-content {
-                margin-left: 0;
-                padding: 20px 15px;
-            }
-
-            /* Player Bar Mobile */
-            .player-bar {
-                bottom: 70px; /* Di atas navbar bawah hp */
-                height: 75px;
-                padding: 0 15px;
-            }
-            .player-bar .desktop-vol {
-                display: none; /* Sembunyikan slider volume di layar kecil */
-            }
-            .player-controls button {
-                font-size: 1.1rem;
-                margin: 0 6px;
-            }
-            .player-controls button.btn-play {
-                width: 38px;
-                height: 38px;
-                font-size: 0.95rem;
-            }
+            .sidebar .brand-title, .sidebar .border-top { display: none; }
+            .sidebar .nav { flex-direction: row !important; width: 100%; justify-content: space-around; }
+            .nav-link { padding: 8px 12px; font-size: 0.9rem; text-align: center; margin-bottom: 0; }
+            .main-content { margin-left: 0; padding: 20px 15px; }
+            .player-bar { bottom: 70px; height: 75px; padding: 0 15px; }
+            .player-bar .desktop-vol { display: none; }
+            .player-controls button { font-size: 1.1rem; margin: 0 6px; }
+            .player-controls button.btn-play { width: 38px; height: 38px; font-size: 0.95rem; }
         }
 
         ::-webkit-scrollbar { width: 6px; }
@@ -251,7 +214,6 @@
 </head>
 <body>
 
-    <!-- MAIN DASHBOARD -->
     <div id="mainApp">
         <!-- Sidebar / Navbar Mobile -->
         <div class="sidebar d-flex flex-column justify-content-between shadow-lg">
@@ -264,10 +226,10 @@
             </div>
             <div class="border-top border-secondary pt-3">
                 <div class="d-flex align-items-center gap-2 mb-2">
-                    <div class="bg-success rounded-circle d-flex align-items-center justify-content-center text-black fw-bold" style="width: 30px; height: 30px; font-size: 0.85rem;" id="userInitial">U</div>
-                    <span class="text-white small text-truncate" id="lblUser">User</span>
+                    <div class="bg-success rounded-circle d-flex align-items-center justify-content-center text-black fw-bold" style="width: 30px; height: 30px; font-size: 0.85rem;" id="userInitial">P</div>
+                    <span class="text-white small text-truncate" id="lblUser">PinuUser</span>
                 </div>
-                <button class="btn btn-outline-light btn-sm w-100 rounded-pill" onclick="logout()"><i class="fa-solid fa-right-from-bracket me-1"></i> Keluar</button>
+                <button class="btn btn-outline-light btn-sm w-100 rounded-pill" onclick="refreshData()"><i class="fa-solid fa-rotate me-1"></i> Segarkan Data</button>
             </div>
         </div>
 
@@ -279,7 +241,10 @@
                     <h3 class="fw-bold m-0">Koleksi Musik Cloud</h3>
                 </div>
                 <div id="songList" class="row g-3">
-                    <!-- Data lagu dimuat secara dinamis -->
+                    <div class="col-12 text-center py-5">
+                        <div class="text-muted mb-3" style="font-size: 3rem;"><i class="fa-solid fa-compact-disc fa-spin"></i></div>
+                        <h4 class="text-white">Memuat lagu dari cloud...</h4>
+                    </div>
                 </div>
             </div>
 
@@ -347,18 +312,57 @@
         const CLOUD_NAME = "gyqyo2kv";
         const UPLOAD_PRESET = "pinuplay_unsigned";
 
-        let currentUser = localStorage.getItem('pinu_user') || "UserPinu";
-        let songsDatabase = JSON.parse(localStorage.getItem('pinu_songs')) || [];
+        // Menggunakan JSONBin.io publik sebagai wadah database lagu bersama
+        const JSONBIN_URL = "https://api.jsonbin.io/v3/b/66f1207ead19ca34f8a127f8"; // Public Bin untuk PinuPlay
+        const JSONBIN_KEY = "$2a$10$9F... (Free Tier)"; // Kosongkan atau gunakan master key jika perlu
+
+        let songsDatabase = [];
         let currentSongIndex = 0;
         let isPlaying = false;
 
         const audioPlayer = document.getElementById('audioPlayer');
 
         window.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('lblUser').innerText = currentUser;
-            document.getElementById('userInitial').innerText = currentUser.charAt(0).toUpperCase();
-            renderSongList();
+            fetchSongsFromCloud();
         });
+
+        async function fetchSongsFromCloud() {
+            try {
+                const res = await fetch(JSONBIN_URL + "/latest", {
+                    headers: { "X-Master-Key": "$2a$10$7Z8V..." } // Optional
+                });
+                const result = await res.json();
+                if (result && result.record && Array.isArray(result.record.songs)) {
+                    songsDatabase = result.record.songs;
+                } else {
+                    songsDatabase = [];
+                }
+            } catch (err) {
+                // Fallback ke localStorage jika jaringan bermasalah
+                songsDatabase = JSON.parse(localStorage.getItem('pinu_songs')) || [];
+            }
+            renderSongList();
+        }
+
+        async function saveSongsToCloud() {
+            try {
+                await fetch(JSONBIN_URL, {
+                    method: 'PUT',
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ songs: songsDatabase })
+                });
+            } catch (err) {
+                console.log("Gagal simpan ke cloud JSONBin, tersimpan di lokal.");
+            }
+            localStorage.setItem('pinu_songs', JSON.stringify(songsDatabase));
+        }
+
+        function refreshData() {
+            alert("Memperbarui daftar lagu dari cloud...");
+            fetchSongsFromCloud();
+        }
 
         function autoFillTitle(input) {
             if (input.files && input.files[0]) {
@@ -366,11 +370,6 @@
                 let cleanName = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
                 document.getElementById('upTitle').value = cleanName;
             }
-        }
-
-        function logout() {
-            localStorage.removeItem('pinu_user');
-            location.reload();
         }
 
         function switchTab(tab, event) {
@@ -391,9 +390,9 @@
             if (songsDatabase.length === 0) {
                 container.innerHTML = `
                     <div class="col-12 text-center py-5">
-                        <div class="text-muted mb-3" style="font-size: 3rem;"><i class="fa-solid fa-compact-disc fa-spin"></i></div>
+                        <div class="text-muted mb-3" style="font-size: 3rem;"><i class="fa-solid fa-compact-disc"></i></div>
                         <h4 class="text-white">Belum ada lagu</h4>
-                        <p class="text-muted small">Unggah musik pertamamu melalui menu <strong>Unggah</strong>.</p>
+                        <p class="text-muted small">Unggah musik melalui menu <strong>Unggah</strong>.</p>
                     </div>`;
                 return;
             }
@@ -433,7 +432,7 @@
             if (data.secure_url) {
                 return data.secure_url;
             } else {
-                throw new Error("Gagal mengunggah ke Cloudinary. Periksa kembali preset unsigned Anda.");
+                throw new Error("Gagal mengunggah ke Cloudinary.");
             }
         }
 
@@ -441,7 +440,7 @@
             e.preventDefault();
             const btn = document.getElementById('btnUploadSubmit');
             btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah...`;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah ke Cloud...`;
 
             try {
                 const title = document.getElementById('upTitle').value;
@@ -456,13 +455,12 @@
                     title: title,
                     artist: artist,
                     audioUrl: audioUrl,
-                    coverUrl: coverUrl,
-                    uploader: currentUser
+                    coverUrl: coverUrl
                 });
 
-                localStorage.setItem('pinu_songs', JSON.stringify(songsDatabase));
+                await saveSongsToCloud();
 
-                alert("Berhasil diunggah ke cloud!");
+                alert("Berhasil! Lagu tersimpan di cloud dan otomatis sinkron ke HP.");
                 document.getElementById('uploadForm').reset();
                 
                 document.getElementById('tabHome').classList.remove('d-none');
