@@ -8,9 +8,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome untuk ikon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase App & Realtime Database CDN -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
         :root {
             --bg-dark: #121212;
@@ -143,8 +140,7 @@
     <div id="authScreen">
         <div class="auth-card text-center">
             <h2 class="text-white mb-4"><i class="fa-solid fa-music text-success"></i> PinuPlay</h2>
-            <p class="text-muted mb-4">Masuk untuk akses musik cloud Anda dari komputer mana saja.</p>
-            <div id="authAlert" class="alert alert-danger d-none py-2 small"></div>
+            <p class="text-muted mb-4">Masuk untuk mulai mendengarkan musik.</p>
             <form id="authForm" onsubmit="handleAuth(event)">
                 <div class="mb-3 text-start">
                     <label class="form-label text-muted small">Username</label>
@@ -154,7 +150,7 @@
                     <label class="form-label text-muted small">Password</label>
                     <input type="password" id="authPassword" class="form-control bg-dark text-white border-secondary" required>
                 </div>
-                <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Masuk / Daftar Akun</button>
+                <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Masuk / Daftar</button>
             </form>
         </div>
     </div>
@@ -171,7 +167,7 @@
                 </ul>
             </div>
             <div class="border-top border-secondary pt-3">
-                <span class="text-muted small d-block mb-2">Login sebagai: <strong id="lblUser" class="text-white"></strong></span>
+                <span class="text-muted small d-block mb-2">Akun: <strong id="lblUser" class="text-white"></strong></span>
                 <button class="btn btn-outline-danger btn-sm w-100" onclick="logout()"><i class="fa-solid fa-right-from-bracket me-1"></i> Keluar</button>
             </div>
         </div>
@@ -180,16 +176,15 @@
         <div class="main-content">
             <!-- TAB BERANDA -->
             <div id="tabHome">
-                <h2 class="fw-bold mb-4">Koleksi Musik Cloud</h2>
+                <h2 class="fw-bold mb-4">Koleksi Musik Anda</h2>
                 <div id="songList" class="row g-4">
-                    <!-- Data lagu dimuat secara real-time dari database -->
-                    <div class="text-muted">Memuat musik dari server...</div>
+                    <!-- Data lagu dimuat dari localStorage -->
                 </div>
             </div>
 
             <!-- TAB UPLOAD -->
             <div id="tabUpload" class="d-none">
-                <h2 class="fw-bold mb-4">Unggah Musik Baru ke Cloudinary</h2>
+                <h2 class="fw-bold mb-4">Unggah Musik ke Cloudinary</h2>
                 <div class="card bg-panel border-secondary p-4" style="max-width: 600px; background-color: var(--bg-panel);">
                     <form id="uploadForm" onsubmit="handleUploadMusic(event)">
                         <div class="mb-3">
@@ -197,7 +192,7 @@
                             <input type="text" id="upTitle" class="form-control bg-dark text-white border-secondary" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label text-muted">Nama Artis / Penyanyi</label>
+                            <label class="form-label text-muted">Nama Artis</label>
                             <input type="text" id="upArtist" class="form-control bg-dark text-white border-secondary" required>
                         </div>
                         <div class="mb-3">
@@ -220,7 +215,7 @@
                 <img id="playerCover" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100" class="rounded me-3" style="width: 55px; height: 55px; object-fit: cover;">
                 <div>
                     <h6 id="playerTitle" class="m-0 text-white text-truncate" style="max-width: 200px;">Pilih Lagu</h6>
-                    <small id="playerArtist" class="text-muted">PinuPlay Cloud</small>
+                    <small id="playerArtist" class="text-muted">PinuPlay Player</small>
                 </div>
             </div>
             <div class="d-flex flex-column align-items-center" style="width: 40%;">
@@ -245,61 +240,29 @@
     <audio id="audioPlayer" ontimeupdate="updateProgress()" onended="nextSong()"></audio>
 
     <script>
-        // Konfigurasi Firebase Realtime Database
-        const firebaseConfig = {
-            databaseURL: "https://pinuplay-default-rtdb.asia-southeast1.firebasedatabase.app/"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
         // Kredensial Cloudinary Anda
         const CLOUD_NAME = "gyqyo2kv";
-        const UPLOAD_PRESET = "pinuplay_unsigned"; // Anda bisa buat unsigned preset di dashboard Cloudinary Anda
+        const UPLOAD_PRESET = "pinuplay_unsigned";
 
         let currentUser = localStorage.getItem('pinu_user');
-        let songsDatabase = [];
+        let songsDatabase = JSON.parse(localStorage.getItem('pinu_songs')) || [];
         let currentSongIndex = 0;
         let isPlaying = false;
 
         const audioPlayer = document.getElementById('audioPlayer');
 
-        // Cek Sesi Login Awal
         window.addEventListener('DOMContentLoaded', () => {
             if (currentUser) {
                 showApp();
             }
         });
 
-        // Autentikasi User sederhana tersimpan di Database Cloud
         function handleAuth(e) {
             e.preventDefault();
             const username = document.getElementById('authUsername').value.trim();
-            const pass = document.getElementById('authPassword').value.trim();
-
-            db.ref('users/' + username).once('value', (snapshot) => {
-                const data = snapshot.val();
-                if (!data) {
-                    // Daftar akun baru otomatis
-                    db.ref('users/' + username).set({ password: pass });
-                    loginSuccess(username);
-                } else if (data.password === pass) {
-                    loginSuccess(username);
-                } else {
-                    showAuthError("Password salah!");
-                }
-            });
-        }
-
-        function loginSuccess(username) {
             currentUser = username;
             localStorage.setItem('pinu_user', username);
             showApp();
-        }
-
-        function showAuthError(msg) {
-            const alertBox = document.getElementById('authAlert');
-            alertBox.innerText = msg;
-            alertBox.classList.remove('d-none');
         }
 
         function logout() {
@@ -311,7 +274,7 @@
             document.getElementById('authScreen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
             document.getElementById('lblUser').innerText = currentUser;
-            fetchSongsFromCloud();
+            renderSongList();
         }
 
         function switchTab(tab) {
@@ -327,24 +290,10 @@
             }
         }
 
-        // Ambil Data Lagu secara Realtime dari Cloud Database
-        function fetchSongsFromCloud() {
-            db.ref('songs').on('value', (snapshot) => {
-                const data = snapshot.val();
-                songsDatabase = [];
-                if (data) {
-                    Object.keys(data).forEach(key => {
-                        songsDatabase.push({ id: key, ...data[key] });
-                    });
-                }
-                renderSongList();
-            });
-        }
-
         function renderSongList() {
             const container = document.getElementById('songList');
             if (songsDatabase.length === 0) {
-                container.innerHTML = `<p class="text-muted">Belum ada lagu di cloud. Silakan unggah melalui menu Unggah Musik.</p>`;
+                container.innerHTML = `<p class="text-muted">Belum ada lagu. Silakan unggah melalui menu Unggah Musik.</p>`;
                 return;
             }
 
@@ -363,7 +312,6 @@
             container.innerHTML = html;
         }
 
-        // Fungsi Unggah File ke Cloudinary
         async function uploadToCloudinary(file, resourceType = 'auto') {
             const formData = new FormData();
             formData.append('file', file);
@@ -377,7 +325,7 @@
             if (data.secure_url) {
                 return data.secure_url;
             } else {
-                throw new Error("Gagal mengunggah ke Cloudinary. Pastikan preset unsigned sudah diaktifkan di dashboard Cloudinary Anda.");
+                throw new Error("Gagal mengunggah ke Cloudinary. Periksa kembali preset unsigned Anda.");
             }
         }
 
@@ -393,11 +341,10 @@
                 const audioFile = document.getElementById('upAudioFile').files[0];
                 const coverFile = document.getElementById('upCoverFile').files[0];
 
-                const audioUrl = await uploadToCloudinary(audioFile, 'video'); // Cloudinary menggunakan resource type video untuk audio mp3
+                const audioUrl = await uploadToCloudinary(audioFile, 'video');
                 const coverUrl = await uploadToCloudinary(coverFile, 'image');
 
-                // Simpan ke Realtime Database agar tersinkronisasi di semua komputer
-                await db.ref('songs').push({
+                songsDatabase.push({
                     title: title,
                     artist: artist,
                     audioUrl: audioUrl,
@@ -405,10 +352,13 @@
                     uploader: currentUser
                 });
 
-                alert("Musik berhasil diunggah dan disinkronkan ke cloud database!");
+                localStorage.setItem('pinu_songs', JSON.stringify(songsDatabase));
+
+                alert("Musik berhasil diunggah ke Cloudinary!");
                 document.getElementById('uploadForm').reset();
                 switchTab('home');
                 document.querySelector('.sidebar .nav-link').classList.add('active');
+                renderSongList();
             } catch (err) {
                 alert(err.message);
             } finally {
@@ -417,7 +367,6 @@
             }
         }
 
-        // Pemutar Musik
         function playSong(index) {
             currentSongIndex = index;
             const song = songsDatabase[index];
