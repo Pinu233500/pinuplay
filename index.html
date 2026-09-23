@@ -295,10 +295,27 @@
     <!-- Audio Element -->
     <audio id="audioPlayer" ontimeupdate="updateProgress()" onended="nextSong()"></audio>
 
-    <script>
-        const CLOUD_NAME = "gyqyo2kv";
-        const UPLOAD_PRESET = "pinuplay_unsigned";
-        const JSONBIN_URL = "https://api.jsonbin.io/v3/b/66f1207ead19ca34f8a127f8";
+    <!-- Script Firebase & Logika Aplikasi -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
+
+        // Konfigurasi Firebase Anda
+        const firebaseConfig = {
+            apiKey: "AIzaSyDn96owjpK4N4gyrOR_YRVhb49N41BhHv8",
+            authDomain: "pinuplay-49bbb.firebaseapp.com",
+            projectId: "pinuplay-49bbb",
+            storageBucket: "pinuplay-49bbb.firebasestorage.app",
+            messagingSenderId: "973335686408",
+            appId: "1:973335686408:web:23ea5d9cc3239b36fd90bd",
+            measurementId: "G-7SXM8SNVTR"
+        };
+
+        // Inisialisasi Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
 
         let songsDatabase = [];
         let currentSongIndex = 0;
@@ -310,37 +327,32 @@
             fetchSongsFromCloud();
         });
 
-        async function fetchSongsFromCloud() {
+        // Ambil data lagu dari Firebase Firestore
+        window.fetchSongsFromCloud = async function() {
+            const container = document.getElementById('songList');
+            container.innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <div class="text-muted mb-3" style="font-size: 3rem;"><i class="fa-solid fa-compact-disc fa-spin"></i></div>
+                    <h4 class="text-white">Memuat daftar lagu...</h4>
+                </div>`;
+
             try {
-                const res = await fetch(JSONBIN_URL + "/latest", {
-                    headers: { "X-Master-Key": "$2a$10$7Z8V..." }
+                const querySnapshot = await getDocs(collection(db, "songs"));
+                songsDatabase = [];
+                querySnapshot.forEach((doc) => {
+                    songsDatabase.push(doc.data());
                 });
-                const result = await res.json();
-                if (result && result.record && Array.isArray(result.record.songs)) {
-                    songsDatabase = result.record.songs;
-                } else {
-                    songsDatabase = [];
-                }
+                renderSongList();
             } catch (err) {
-                songsDatabase = JSON.parse(localStorage.getItem('pinu_songs')) || [];
+                console.error("Gagal memuat dari Firebase:", err);
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <h4 class="text-danger">Gagal memuat data dari database cloud.</h4>
+                    </div>`;
             }
-            renderSongList();
         }
 
-        async function saveSongsToCloud() {
-            try {
-                await fetch(JSONBIN_URL, {
-                    method: 'PUT',
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ songs: songsDatabase })
-                });
-            } catch (err) {
-                console.log("Gagal simpan ke cloud");
-            }
-            localStorage.setItem('pinu_songs', JSON.stringify(songsDatabase));
-        }
-
-        function switchTab(tab, event) {
+        window.switchTab = function(tab, event) {
             document.querySelectorAll('.sidebar .nav-link').forEach(el => el.classList.remove('active'));
             if (tab === 'home') {
                 document.getElementById('tabHome').classList.remove('d-none');
@@ -387,64 +399,53 @@
             container.innerHTML = html;
         }
 
-        async function uploadToCloudinary(file, resourceType = 'auto') {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('upload_preset', UPLOAD_PRESET);
-
-            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`, {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            if (data.secure_url) {
-                return data.secure_url;
-            } else {
-                throw new Error("Gagal mengunggah file ke Cloudinary.");
-            }
-        }
-
-        async function handleUploadMusic(e) {
+        // Fungsi Upload file ke Firebase Storage & Firestore
+        window.handleUploadMusic = async function(e) {
             e.preventDefault();
             const btn = document.getElementById('btnUploadSubmit');
             btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah ke Cloudinary...`;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah ke Cloud...`;
 
             try {
                 const audioFile = document.getElementById('upAudioFile').files[0];
                 
-                // Ambil judul dari nama file otomatis
                 let fileName = audioFile.name;
                 let title = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
                 let artist = "PinuPlay Cloud";
                 let coverUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300";
 
-                const audioUrl = await uploadToCloudinary(audioFile, 'video');
+                // 1. Upload file musik ke Firebase Storage
+                const storageRef = ref(storage, 'songs/' + Date.now() + '_' + audioFile.name);
+                await uploadBytes(storageRef, audioFile);
 
-                songsDatabase.push({
+                // 2. Dapatkan URL unduhan publik dari Storage
+                const audioUrl = await getDownloadURL(storageRef);
+
+                // 3. Simpan metadata lagu ke Cloud Firestore
+                await addDoc(collection(db, "songs"), {
                     title: title,
                     artist: artist,
                     audioUrl: audioUrl,
-                    coverUrl: coverUrl
+                    coverUrl: coverUrl,
+                    createdAt: new Date()
                 });
-
-                await saveSongsToCloud();
 
                 alert("Berhasil! Lagu tersimpan dan otomatis sinkron ke HP.");
                 document.getElementById('uploadForm').reset();
                 
                 switchTab('home');
                 document.querySelectorAll('.sidebar .nav-link')[0].classList.add('active');
-                renderSongList();
+                fetchSongsFromCloud();
             } catch (err) {
-                alert(err.message);
+                console.error("Error upload:", err);
+                alert("Gagal mengunggah file ke cloud.");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = "Unggah ke Cloud Sekarang";
             }
         }
 
-        function playSong(index) {
+        window.playSong = function(index) {
             currentSongIndex = index;
             const song = songsDatabase[index];
 
@@ -458,7 +459,7 @@
             document.getElementById('playIcon').className = "fa-solid fa-pause";
         }
 
-        function togglePlay() {
+        window.togglePlay = function() {
             if (songsDatabase.length === 0) return;
             if (isPlaying) {
                 audioPlayer.pause();
@@ -472,19 +473,19 @@
             }
         }
 
-        function nextSong() {
+        window.nextSong = function() {
             if (songsDatabase.length === 0) return;
             currentSongIndex = (currentSongIndex + 1) % songsDatabase.length;
             playSong(currentSongIndex);
         }
 
-        function prevSong() {
+        window.prevSong = function() {
             if (songsDatabase.length === 0) return;
             currentSongIndex = (currentSongIndex - 1 + songsDatabase.length) % songsDatabase.length;
             playSong(currentSongIndex);
         }
 
-        function updateProgress() {
+        window.updateProgress = function() {
             if (isNaN(audioPlayer.duration)) return;
             const progressPercent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
             document.getElementById('progressFilled').style.width = progressPercent + '%';
@@ -493,14 +494,14 @@
             document.getElementById('durationTime').innerText = formatTime(audioPlayer.duration);
         }
 
-        function seekAudio(e) {
+        window.seekAudio = function(e) {
             const width = document.getElementById('progressBar').clientWidth;
             const clickX = e.offsetX;
             const duration = audioPlayer.duration;
             audioPlayer.currentTime = (clickX / width) * duration;
         }
 
-        function changeVolume(val) {
+        window.changeVolume = function(val) {
             audioPlayer.volume = val;
         }
 
