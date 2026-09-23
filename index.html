@@ -295,7 +295,7 @@
     <!-- Audio Element -->
     <audio id="audioPlayer" ontimeupdate="updateProgress()" onended="nextSong()"></audio>
 
-    <!-- Script Firebase & Cloudinary dengan Progress 0-100% -->
+    <!-- Script Firebase & Cloudinary -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
@@ -397,7 +397,7 @@
             container.innerHTML = html;
         }
 
-        // Fungsi Upload dengan Progress Persentase (0% - 100%)
+        // Fungsi Upload dengan Progress Persentase & Penyimpanan Firestore
         window.handleUploadMusic = function(e) {
             e.preventDefault();
             const btn = document.getElementById('btnUploadSubmit');
@@ -416,7 +416,6 @@
             const xhr = new XMLHttpRequest();
             xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, true);
 
-            // Pantau progress upload (0% - 100%)
             xhr.upload.onprogress = function(event) {
                 if (event.lengthComputable) {
                     const percentComplete = Math.round((event.loaded / event.total) * 100);
@@ -430,7 +429,9 @@
                         const data = JSON.parse(xhr.responseText);
                         const audioUrl = data.secure_url;
 
-                        // Simpan ke Firestore
+                        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Menyimpan ke Database...`;
+
+                        // Simpan metadata ke Cloud Firestore
                         await addDoc(collection(db, "songs"), {
                             title: title,
                             artist: artist,
@@ -446,8 +447,8 @@
                         document.querySelectorAll('.sidebar .nav-link')[0].classList.add('active');
                         fetchSongsFromCloud();
                     } catch (err) {
-                        console.error("Error saving to db:", err);
-                        alert("Gagal menyimpan data lagu ke database.");
+                        console.error("Gagal menyimpan ke database:", err);
+                        alert("File terunggah, tetapi gagal menyimpan data ke Firestore. Pastikan Firestore Rules sudah diset (allow read, write: if true;).");
                     }
                 } else {
                     alert("Gagal mengunggah file ke Cloudinary.");
