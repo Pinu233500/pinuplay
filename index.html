@@ -295,13 +295,12 @@
     <!-- Audio Element -->
     <audio id="audioPlayer" ontimeupdate="updateProgress()" onended="nextSong()"></audio>
 
-    <!-- Script Firebase & Logika Aplikasi -->
+    <!-- Script Firebase (Firestore) & Cloudinary -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 
-        // Konfigurasi Firebase Anda
+        // Konfigurasi Firebase Anda (hanya untuk database Firestore)
         const firebaseConfig = {
             apiKey: "AIzaSyDn96owjpK4N4gyrOR_YRVhb49N41BhHv8",
             authDomain: "pinuplay-49bbb.firebaseapp.com",
@@ -312,10 +311,12 @@
             measurementId: "G-7SXM8SNVTR"
         };
 
-        // Inisialisasi Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const storage = getStorage(app);
+
+        // Pengaturan Cloudinary Anda
+        const CLOUD_NAME = "gyqyo2kv";
+        const UPLOAD_PRESET = "pinuplay_unsigned";
 
         let songsDatabase = [];
         let currentSongIndex = 0;
@@ -327,7 +328,7 @@
             fetchSongsFromCloud();
         });
 
-        // Ambil data lagu dari Firebase Firestore
+        // Ambil data lagu dari Firestore agar sinkron di HP
         window.fetchSongsFromCloud = async function() {
             const container = document.getElementById('songList');
             container.innerHTML = `
@@ -399,11 +400,12 @@
             container.innerHTML = html;
         }
 
-        // Fungsi Upload file dengan Persentase Progress (%) ke Firebase Storage & Firestore
+        // Fungsi Upload file ke Cloudinary & simpan metadata ke Firestore
         window.handleUploadMusic = async function(e) {
             e.preventDefault();
             const btn = document.getElementById('btnUploadSubmit');
             btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah ke Cloudinary...`;
 
             try {
                 const audioFile = document.getElementById('upAudioFile').files[0];
@@ -413,46 +415,42 @@
                 let artist = "PinuPlay Cloud";
                 let coverUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300";
 
-                const storageRef = ref(storage, 'songs/' + Date.now() + '_' + audioFile.name);
-                const uploadTask = uploadBytesResumable(storageRef, audioFile);
+                // Kirim file ke Cloudinary (menggunakan resource type 'video' agar file audio .mp3 bisa diterima)
+                const formData = new FormData();
+                formData.append('file', audioFile);
+                formData.append('upload_preset', UPLOAD_PRESET);
 
-                uploadTask.on('state_changed', 
-                    (snapshot) => {
-                        const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah... ${progress}%`;
-                    }, 
-                    (error) => {
-                        console.error("Error upload:", error);
-                        alert("Gagal mengunggah file ke cloud.");
-                        btn.disabled = false;
-                        btn.innerHTML = "Unggah ke Cloud Sekarang";
-                    }, 
-                    async () => {
-                        const audioUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
 
-                        await addDoc(collection(db, "songs"), {
-                            title: title,
-                            artist: artist,
-                            audioUrl: audioUrl,
-                            coverUrl: coverUrl,
-                            createdAt: new Date()
-                        });
+                if (!data.secure_url) {
+                    throw new Error("Gagal mengunggah file ke Cloudinary.");
+                }
 
-                        alert("Berhasil! Lagu tersimpan dan otomatis sinkron ke HP.");
-                        document.getElementById('uploadForm').reset();
-                        
-                        switchTab('home');
-                        document.querySelectorAll('.sidebar .nav-link')[0].classList.add('active');
-                        fetchSongsFromCloud();
+                const audioUrl = data.secure_url;
 
-                        btn.disabled = false;
-                        btn.innerHTML = "Unggah ke Cloud Sekarang";
-                    }
-                );
+                // Simpan data lagu ke Cloud Firestore agar langsung sinkron ke perangkat lain/HP
+                await addDoc(collection(db, "songs"), {
+                    title: title,
+                    artist: artist,
+                    audioUrl: audioUrl,
+                    coverUrl: coverUrl,
+                    createdAt: new Date()
+                });
 
+                alert("Berhasil! Lagu tersimpan dan otomatis sinkron ke HP.");
+                document.getElementById('uploadForm').reset();
+                
+                switchTab('home');
+                document.querySelectorAll('.sidebar .nav-link')[0].classList.add('active');
+                fetchSongsFromCloud();
             } catch (err) {
                 console.error("Error upload:", err);
-                alert("Terjadi kesalahan saat memproses file.");
+                alert(err.message || "Gagal mengunggah file.");
+            } finally {
                 btn.disabled = false;
                 btn.innerHTML = "Unggah ke Cloud Sekarang";
             }
