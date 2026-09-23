@@ -299,7 +299,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 
         // Konfigurasi Firebase Anda
         const firebaseConfig = {
@@ -399,12 +399,11 @@
             container.innerHTML = html;
         }
 
-        // Fungsi Upload file ke Firebase Storage & Firestore
+        // Fungsi Upload file dengan Persentase Progress (%) ke Firebase Storage & Firestore
         window.handleUploadMusic = async function(e) {
             e.preventDefault();
             const btn = document.getElementById('btnUploadSubmit');
             btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah ke Cloud...`;
 
             try {
                 const audioFile = document.getElementById('upAudioFile').files[0];
@@ -414,32 +413,46 @@
                 let artist = "PinuPlay Cloud";
                 let coverUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300";
 
-                // 1. Upload file musik ke Firebase Storage
                 const storageRef = ref(storage, 'songs/' + Date.now() + '_' + audioFile.name);
-                await uploadBytes(storageRef, audioFile);
+                const uploadTask = uploadBytesResumable(storageRef, audioFile);
 
-                // 2. Dapatkan URL unduhan publik dari Storage
-                const audioUrl = await getDownloadURL(storageRef);
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah... ${progress}%`;
+                    }, 
+                    (error) => {
+                        console.error("Error upload:", error);
+                        alert("Gagal mengunggah file ke cloud.");
+                        btn.disabled = false;
+                        btn.innerHTML = "Unggah ke Cloud Sekarang";
+                    }, 
+                    async () => {
+                        const audioUrl = await getDownloadURL(uploadTask.snapshot.ref);
 
-                // 3. Simpan metadata lagu ke Cloud Firestore
-                await addDoc(collection(db, "songs"), {
-                    title: title,
-                    artist: artist,
-                    audioUrl: audioUrl,
-                    coverUrl: coverUrl,
-                    createdAt: new Date()
-                });
+                        await addDoc(collection(db, "songs"), {
+                            title: title,
+                            artist: artist,
+                            audioUrl: audioUrl,
+                            coverUrl: coverUrl,
+                            createdAt: new Date()
+                        });
 
-                alert("Berhasil! Lagu tersimpan dan otomatis sinkron ke HP.");
-                document.getElementById('uploadForm').reset();
-                
-                switchTab('home');
-                document.querySelectorAll('.sidebar .nav-link')[0].classList.add('active');
-                fetchSongsFromCloud();
+                        alert("Berhasil! Lagu tersimpan dan otomatis sinkron ke HP.");
+                        document.getElementById('uploadForm').reset();
+                        
+                        switchTab('home');
+                        document.querySelectorAll('.sidebar .nav-link')[0].classList.add('active');
+                        fetchSongsFromCloud();
+
+                        btn.disabled = false;
+                        btn.innerHTML = "Unggah ke Cloud Sekarang";
+                    }
+                );
+
             } catch (err) {
                 console.error("Error upload:", err);
-                alert("Gagal mengunggah file ke cloud.");
-            } finally {
+                alert("Terjadi kesalahan saat memproses file.");
                 btn.disabled = false;
                 btn.innerHTML = "Unggah ke Cloud Sekarang";
             }
